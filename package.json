@@ -1,10 +1,21 @@
 {
-  "dependencies": {
-    "@playwright/browser-chromium": "^1.56.1",
-    "playwright": "^1.56.1"
+  "name": "better-history",
+  "version": "1.0.0",
+  "description": "",
+  "license": "MIT",
+  "author": "",
+  "type": "ES6",
+  "main": "src/main.ts",
+  "scripts": {
+    "start": "npx tsc && node dist/main.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@playwright/browser-chromium": "^1.56.1",
+    "playwright": "^1.56.1"
   }
 }
