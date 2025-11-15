@@ -1,6 +1,8 @@
 import { chromium } from 'playwright';
 import type { BrowserContext } from 'playwright';
 import { readFileSync } from 'fs';
+import { createServer } from 'http';
+import EventEmitter from 'node:events';
 
 // async function scrollToBottom(page: Page) {
     // const window: any = await page.evaluateHandle('window');
@@ -31,8 +33,8 @@ async function url_search(url: string, niddle: string, ctx: BrowserContext) {
     try {
         await p.goto(url);
         // await scrollToBottom(p);
-        result = (await p.locator('html').getByText(niddle).allInnerTexts())
-                .filter(s => s.length != 0);
+        result = (await p.locator('html').getByText(niddle).allInnerTexts());
+        result = result.filter(s => s && s.length != 0);
     } catch (err) { 
         console.log("Error when scraping " + url + ": " + err);
     } finally {
@@ -46,7 +48,7 @@ type Result = {
     niddle: string[],
 }
 
-async function search_list(urls: string[], niddle: string, ctx: BrowserContext) {
+async function do_search_list(urls: string[], niddle: string, ctx: BrowserContext) {
     let batch_sz = 20;
     let result: Result[] = [];
     for (let i = 0; i < urls.length; i += batch_sz) {
@@ -65,6 +67,17 @@ async function search_list(urls: string[], niddle: string, ctx: BrowserContext) 
     return result;
 }
 
+async function search_list(urls: string[], niddle: string) {
+    const broswer = await chromium.launch({ headless: false });
+    let context = await broswer.newContext();
+
+    let results = await do_search_list(urls, niddle, context);
+
+    await context.close();
+    await broswer.close();
+    return results;
+}
+
 function readGoogleTakeout(path: string): string[] {
     type History = {
         title: string,
@@ -77,19 +90,54 @@ function readGoogleTakeout(path: string): string[] {
     return history.map(h => h.url);
 }
 
-async function main() {
-    let urls = readGoogleTakeout('./myhistory/chrome.json')
-        .filter(h => h.includes("baidu"))
-        .slice(0, 50);
+function main(mode: 'post'|'takeout') {
+    let urls: string[] = [];
+    let niddle: string = "";
+    const eventEmitter = new EventEmitter();
+    
+    if (mode === 'takeout') {
+        urls = readGoogleTakeout('./myhistory/chrome.json')
+            .filter(h => h.includes("baidu"))
+            .slice(0, 50);
+        eventEmitter.emit('startSearch');
+    } else {
+        let server = createServer((req, res) => {
+            console.log("Request", req.url);
 
-    const broswer = await chromium.launch({ headless: false });
-    let context = await broswer.newContext();
+            if (req.method === 'POST' && req.url === '/newURL') {
+                let body = '';
+                req.on('data', chunk => body += chunk.toString());
+                req.on('end', () => {
+                    urls.push(body.trim());
+                    res.writeHead(200);
+                    res.end();
+                });
+            } else if (req.method === 'POST' && req.url === '/niddle') {
+                let body = '';
+                req.on('data', chunk => body += chunk.toString());
+                req.on('end', () => {
+                    niddle = body.trim();
+                    res.writeHead(200);
+                    res.end();
+                });
+            } else if (req.method === 'POST' && req.url === '/endURL') {
+                server.close(() => console.log("Server closeing"));
+                server.closeAllConnections();
+                eventEmitter.emit('startSearch');
+            } else {
+                res.writeHead(404);
+                res.end('fuck');
+            }     
+        });
 
-    let results = await search_list(urls, "知乎", context);
-    console.log(results);
+        const PORT = 3001
+        server.listen(PORT)
+        console.log(`Server running on port ${PORT}`)
+    }
 
-    await context.close();
-    await broswer.close();
+    eventEmitter.on('startSearch', async () => {
+        console.log(await search_list(urls, niddle));
+    });
 }
 
-await main();
+main('post');
