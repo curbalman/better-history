@@ -96,19 +96,18 @@ function main(mode: 'post'|'takeout') {
     const eventEmitter = new EventEmitter();
     
     if (mode === 'takeout') {
-        urls = readGoogleTakeout('./myhistory/chrome.json')
-            .filter(h => h.includes("baidu"))
-            .slice(0, 50);
+        urls = readGoogleTakeout('./myhistory/chrome.json');
         eventEmitter.emit('startSearch');
     } else {
         let server = createServer((req, res) => {
-            console.log("Request", req.url);
+            // console.log("Request", req.url);
 
             if (req.method === 'POST' && req.url === '/newURL') {
                 let body = '';
                 req.on('data', chunk => body += chunk.toString());
                 req.on('end', () => {
-                    urls.push(body.trim());
+                    let x: string[] = JSON.parse(body);
+                    urls.push(...x);
                     res.writeHead(200);
                     res.end();
                 });
@@ -121,6 +120,8 @@ function main(mode: 'post'|'takeout') {
                     res.end();
                 });
             } else if (req.method === 'POST' && req.url === '/endURL') {
+                res.writeHead(200);
+                res.end();
                 server.close(() => console.log("Server closeing"));
                 server.closeAllConnections();
                 eventEmitter.emit('startSearch');
@@ -136,7 +137,14 @@ function main(mode: 'post'|'takeout') {
     }
 
     eventEmitter.on('startSearch', async () => {
-        console.log(await search_list(urls, niddle));
+        console.log(`Searching "${niddle}" in ${urls.length} links`);
+        // console.log("url", urls);
+        urls = urls
+            .filter(h => h.includes("baidu"))
+            // .slice(0, 50)
+        ;
+        let result = await search_list(urls, niddle);
+        console.log(result);
     });
 }
 

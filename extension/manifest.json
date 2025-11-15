@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Better History",
+  "description": "",
+  "version": "1.0.0",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "host_permissions": ["http://localhost/*"],
+  "permissions": ["history"]
+}

@@ -1,8 +1,5 @@
 let response = await fetch('http://localhost:3001/newURL', {
   method: 'POST',
-//   headers: {
-//     'Content-Type': 'application/json;charset=utf-8'
-//   },
   body: "https://baijiahao.baidu.com/s?id=1848740936377189277"
 });
 
